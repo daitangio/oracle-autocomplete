@@ -1,0 +1,42 @@
+#!/bin/bash
+set -e
+conn="$1"
+dictDest=$HOME/.sqlplus.dict
+if [ ! -f $dictDest ]; then
+    echo Gathering specific completitions for $conn
+    (sqlplus -s $conn  << ! > $dictDest
+	set head off pages 0 linesize 150 echo off feedback off verify off heading off
+	select object_name from all_objects where object_type in (
+	    -- 'TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION'
+	    'TABLE'
+	);
+	/** TODO: For every package, list its public procedures */
+	select p.object_name || '.' || procedure_name || '('
+	from all_procedures allp
+	inner join all_objects p
+	on p.object_name=allp.object_name
+	where allp.owner = user
+	and p.object_type='PACKAGE'
+	and procedure_name is not null;
+	
+
+!
+    )&
+
+    # While waiting. fill up some other stuff
+    t=/tmp/$$.completition
+    cat >$t <<EOF
+exit
+begin
+end
+EOF
+    echo Waiting...
+    wait
+    echo Integrating generated dictionary with Giovanni Giorgi\'s SmartPlus
+    cat $t >>sqlplus.dict
+    rm $t
+    echo Completition available: $(wc -l sqlplus.dict)
+fi
+echo Launching....
+set -x
+rlwrap -if $dictDest  -pgreen  sqlplus  $conn

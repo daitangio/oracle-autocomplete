@@ -1,16 +1,26 @@
 #!/bin/bash
 set -e
+
+
+[ _"$DEBUG" = _ON ] && set -x
+
+ORACLE_AUTOC_HOME=${ORACLE_AUTOC_HOME:=./completitions/oracle11/}
+
+
+
 conn="$1"
-dictDest=$HOME/.sqlplus.dict
-if [ ! -f $dictDest ]; then
-    echo Gathering specific completitions for $conn
+connectionId=$( echo $conn | tr --squeeze-repeats  / _ | tr : _ | tr  '[:upper:]' '[:lower:]' )
+dictDest=$HOME/.sqlplus.dict_${connectionId}
+if [ ! -f $dictDest -o  _"$FORCE_REGEN" = "_true"   ]; then
+    echo Gathering specific completitions...only first time is needed...
+    echo Wait a bit...
     (sqlplus -s $conn  << ! > $dictDest
 	set head off pages 0 linesize 150 echo off feedback off verify off heading off
 	select object_name from all_objects where object_type in (
-	    -- 'TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION'
-	    'TABLE'
+	    --  'PROCEDURE', 'FUNCTION'
+	    'TABLE','PACKAGE','VIEW'
 	);
-	/** TODO: For every package, list its public procedures */
+	/** For every package, list its public procedures */
 	select p.object_name || '.' || procedure_name || '('
 	from all_procedures allp
 	inner join all_objects p
@@ -18,25 +28,33 @@ if [ ! -f $dictDest ]; then
 	where allp.owner = user
 	and p.object_type='PACKAGE'
 	and procedure_name is not null;
-	
+
 
 !
     )&
-
-    # While waiting. fill up some other stuff
-    t=/tmp/$$.completition
-    cat >$t <<EOF
-exit
-begin
-end
-EOF
-    echo Waiting...
-    wait
-    echo Integrating generated dictionary with Giovanni Giorgi\'s SmartPlus
-    cat $t >>sqlplus.dict
-    rm $t
-    echo Completition available: $(wc -l sqlplus.dict)
+else
+    echo Using $dictDest
+    echo set "FORCE_REGEN" environment variable to true to force regeneration
 fi
+
+# While waiting. do some other stuff
+# prepare list of stop words
+EXTRA_LIST="-f $ORACLE_AUTOC_HOME/sqlplus.all 
+           -f $ORACLE_AUTOC_HOME/sqlplus
+           -f $ORACLE_AUTOC_HOME/sqlplus.functions
+           -f $ORACLE_AUTOC_HOME/sqlplus.tables
+           -f $ORACLE_AUTOC_HOME/sqlplus.user 
+           -f $ORACLE_AUTOC_HOME/sqlplus.utl_packages
+           -f $ORACLE_AUTOC_HOME/sqlplus.dba
+           -f $ORACLE_AUTOC_HOME/sqlplus.dbms_packages
+           -f $ORACLE_AUTOC_HOME/sqlplus.init
+           -f $ORACLE_AUTOC_HOME/sqlplus._init
+           -f $ORACLE_AUTOC_HOME/sqlplus.gvdollar
+           -f $ORACLE_AUTOC_HOME/sqlplus.vdollar"
+wait
+echo Completitions available: $(wc -l $dictDest)
+
+# no-children avoids rlwrap action on children commands
 echo Launching....
 set -x
-rlwrap -if $dictDest  -pgreen  sqlplus  $conn
+exec rlwrap -b '()=!<>&+-*|:;,'   -if $dictDest $EXTRA_LIST  -pgreen --histsize 500 --no-children  $ORACLE_HOME/bin/sqlplus  $conn

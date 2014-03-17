@@ -4,7 +4,9 @@ set -e
 
 [ _"$DEBUG" = _ON ] && set -x
 
-ORACLE_AUTOC_HOME=${ORACLE_AUTOC_HOME:=./completitions/oracle11/}
+
+ORACLE_AC_HOME=${ORACLE_AC_HOME:=/home/jj/gpe/oracle-autocomplete/}
+ORACLE_AUTOC_HOME="$ORACLE_AC_HOME/completitions/oracle11/"
 
 
 

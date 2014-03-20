@@ -59,4 +59,4 @@ echo Completitions available: $(wc -l $dictDest)
 # no-children avoids rlwrap action on children commands
 echo Launching....
 set -x
-exec rlwrap -b '()=!<>&+-*|:;,'   -if $dictDest $EXTRA_LIST  -pgreen --histsize 500 --no-children  $ORACLE_HOME/bin/sqlplus  $conn
+exec rlwrap -b '()=!<>&+-*|:;,'   -if $dictDest $EXTRA_LIST  -pgreen --histsize 500 --no-children  $ORACLE_HOME/bin/sqlplus  $*
